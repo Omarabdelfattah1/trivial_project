@@ -99,10 +99,6 @@ def create_app(test_config=None):
     if 'search_term' in body.keys():
         return find_questions(request, body['search_term'])
 
-    for key in ['question', 'answer', 'difficulty', 'category']:
-        if key not in body.keys() or body[key] == None or body[key] == '':
-            return abort(422)
-
     question = Question(
         question=body['question'],
         answer=body['answer'],
@@ -132,30 +128,29 @@ def create_app(test_config=None):
 
   @app.route('/quizzes', methods=['POST'])
   def get_guesses():
-    data = request.get_json()
+    r_json = request.get_json()
     
-    previous_questions = data['previous_questions']
-    quiz_category = data['quiz_category']
-    if ((quiz_category is None) or (previous_questions is None)):
+    answerd_questions = r_json['previous_questions']
+    category = r_json['quiz_category']
+    if ((category is None) or (answerd_questions is None)):
         abort(400)
 
-    if (quiz_category['id'] == 0):
-        questions = Question.query.all()
+    if (category['id'] > 0):
+        questions = Question.query.filter_by(category=str(category['id'])).all()
     else:
-        questions = Question.query.filter_by(
-            category=str(quiz_category['id'])).all()
+        questions = Question.query.all()
 
-    found = True
-    next_question = questions[random.randint(0, len(questions)-1)]
-    while found:
-        if next_question.id in previous_questions:
-            next_question = questions[random.randint(0, len(questions)-1)]
-        else:
-            found = False
+    new_question = questions[random.randint(0, len(questions)-1)]
+    not_answerd=True
+    while not_answerd:
+      if new_question.id in answerd_questions:
+          new_question = questions[random.randint(0, len(questions)-1)]
+      else:
+          not_answerd = False
 
     return jsonify({
         'success': True,
-        'question': next_question.format(),
+        'question': new_question.format(),
     }), 200
   @app.errorhandler(404)
   def not_found(error):
