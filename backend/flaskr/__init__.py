@@ -15,10 +15,14 @@ def get_paginated_questions(request, selection):
 
     start = (page - 1) * QUESTIONS_PER_PAGE
     end = start + QUESTIONS_PER_PAGE
-    formatted_questions = [question.format()
-                           for question in selection]
-
+    formatted_questions = [question.format() for question in selection]
     return formatted_questions[start:end]
+
+def check_items_in_list(items=[],results={}):
+  if all(x in items for x in results):
+    return True
+  return False
+
 def create_app(test_config=None):
   # create and configure the app
   app = Flask(__name__)
@@ -89,16 +93,19 @@ def create_app(test_config=None):
     question.delete()
     return jsonify({
       "success": True,
-      "deleted": question_id
+      "deleted": question_id,
+      "message":"Question successfully deleted",
     })
 
   @app.route('/questions', methods=['POST'])
   def add_question():
     body = request.get_json()
-
-    if 'search_term' in body.keys():
+    
+    if 'search_term' in body :
         return find_questions(request, body['search_term'])
-
+    if check_items_in_list(["question","answer","difficulty","category"],body) == False:
+      return abort(500)
+    
     question = Question(
         question=body['question'],
         answer=body['answer'],
@@ -109,16 +116,17 @@ def create_app(test_config=None):
 
     return jsonify({
         "success": True,
-        "created": question.format()
+        "message":'Question successfully created!',
+        "created": question.format(),
     })
 
   def find_questions(request, search_term):
-    questions = Question.query.filter(Question.question.ilike('%'+search_term+'%')).all()
+    questions = Question.query.filter(Question.question.like('%'+search_term+'%')).all()
     paginated_questions = get_paginated_questions(request, questions)
 
-    if len(questions) > 0 and len(paginated_questions) < 1:
-        return abort(404)
-
+    if len(questions) < 1:
+      return abort(404)
+    
     return jsonify({
         "success": True,
         "questions": paginated_questions,
